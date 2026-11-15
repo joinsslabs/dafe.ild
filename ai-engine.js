@@ -495,11 +495,41 @@ async function dispatchFreeCloudGpuTextToVideo(clipId, compiled, body) {
       const vidUrl = res?.[0]?.video?.url || res?.[0]?.url;
       if (!vidUrl) throw new Error("No video URL from Lightricks LTX-Video");
       return { url: vidUrl, provider: "Lightricks LTX-Video Cloud GPU ($0.00)" };
+    },
+    async () => {
+      const res = await callGradioSpaceSse(
+        "https://multimodalart-wan2-1-fast.hf.space/gradio_api/call/generate_video",
+        [null, diffusionPrompt, 512, 896, negativePrompt, 3, 1, 4, seed, false],
+        gpuTimeoutMs,
+        hfToken
+      );
+      const vidUrl = res?.[0]?.video?.url || res?.[0]?.url;
+      if (!vidUrl) throw new Error("No video URL from Wan 2.1 Fast ZeroGPU");
+      return { url: vidUrl, provider: "Wan 2.1 Fast ZeroGPU ($0.00)" };
+    },
+    async () => {
+      const res = await callGradioSpaceSse(
+        "https://zai-org-cogvideox-5b-space.hf.space/gradio_api/call/generate",
+        [diffusionPrompt, null, null, 0.8, seed, false, false],
+        gpuTimeoutMs,
+        hfToken
+      );
+      const vidUrl = res?.[0]?.video?.url || res?.[0]?.url;
+      if (!vidUrl) throw new Error("No video URL from CogVideoX-5B ZeroGPU");
+      return { url: vidUrl, provider: "CogVideoX-5B ZeroGPU ($0.00)" };
     }
   ];
 
-  // Try the active round-robin provider with a fast 12s budget so scene creation never stalls
-  const chosenProvider = providers[cloudGpuRoundRobin++ % providers.length];
+  // Route to matching HF Space when user selects Wan 2.1 or CogVideoX-5B, else round-robin across all 5 live free Spaces
+  const modelId = compiled?.model?.id || "";
+  let chosenProvider;
+  if (modelId.includes("wan-2.1") || modelId.includes("wan2-1")) {
+    chosenProvider = providers[3];
+  } else if (modelId.includes("cogvideox-5b") || modelId.includes("cogvideox")) {
+    chosenProvider = providers[4];
+  } else {
+    chosenProvider = providers[cloudGpuRoundRobin++ % providers.length];
+  }
   const winner = await chosenProvider();
   if (!winner || !winner.url) {
     throw new Error("Cloud GPU Text-to-Video space busy");
