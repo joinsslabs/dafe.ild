@@ -1,5 +1,5 @@
 /**
- * DAFE.ILD Studio — Real AI Video (.MP4) & Multi-Keyframe Execution Engine + Live AI LLM & MCP Client
+ * DAFEILD Studio — Real AI Video (.MP4) & Multi-Keyframe Execution Engine + Live AI LLM & MCP Client
  * Performs genuine HTTP/HTTPS requests and FFmpeg H.264 + AAC encoding:
  *  1. Google Gemini API (gemini-omni-1.2-flash & AI Studio Free Tier)
  *  2. Free Keyless AI LLM (https://text.pollinations.ai/openai) for Scene Recognition, Continuity & Beat Breakdown
@@ -41,7 +41,7 @@ function rawRequest(urlStr, options = {}, bodyPayload = null, timeoutMs = 45000,
     const reqOpts = {
       method: options.method || "GET",
       headers: {
-        "User-Agent": "DAFE.ILD-Studio/2.5",
+        "User-Agent": "DAFEILD-Studio/2.5",
         ...(options.headers || {})
       },
       timeout: timeoutMs
@@ -392,7 +392,7 @@ function callGradioSpaceSse(callUrl, dataArray, timeoutMs = 45000, hfToken = "")
         {
           method: "GET",
           headers: {
-            "User-Agent": "DAFE.ILD-Studio/2.5",
+            "User-Agent": "DAFEILD-Studio/2.5",
             Accept: "text/event-stream",
             ...authHeaders
           },
@@ -452,7 +452,7 @@ async function dispatchFreeCloudGpuTextToVideo(clipId, compiled, body) {
     999999;
 
   const hfToken = (body?.apiKeys?.hfToken || process.env.HF_TOKEN || "").trim();
-  const gpuTimeoutMs = hfToken ? 45000 : 22000;
+  const gpuTimeoutMs = hfToken ? 55000 : 45000;
 
   const soulDesc = compiled.soul ? `${compiled.soul.appearancePrompt}, ` : "";
   const secSoulDesc = compiled.secondarySoul ? `with ${compiled.secondarySoul.appearancePrompt}, ` : "";
@@ -520,19 +520,30 @@ async function dispatchFreeCloudGpuTextToVideo(clipId, compiled, body) {
     }
   ];
 
-  // Route to matching HF Space when user selects Wan 2.1 or CogVideoX-5B, else round-robin across all 5 live free Spaces
+  // Route to matching HF Space first, then cascade through other live free Spaces on error/cooldown
   const modelId = compiled?.model?.id || "";
-  let chosenProvider;
+  let order = [...providers];
   if (modelId.includes("wan-2.1") || modelId.includes("wan2-1")) {
-    chosenProvider = providers[3];
+    order = [providers[3], providers[0], providers[1], providers[2], providers[4]];
   } else if (modelId.includes("cogvideox-5b") || modelId.includes("cogvideox")) {
-    chosenProvider = providers[4];
+    order = [providers[4], providers[3], providers[0], providers[1], providers[2]];
   } else {
-    chosenProvider = providers[cloudGpuRoundRobin++ % providers.length];
+    const startIdx = cloudGpuRoundRobin++ % providers.length;
+    order = [...providers.slice(startIdx), ...providers.slice(0, startIdx)];
   }
-  const winner = await chosenProvider();
+
+  let winner = null;
+  let lastErr = null;
+  for (const providerFn of order.slice(0, 3)) {
+    try {
+      winner = await providerFn();
+      if (winner && winner.url) break;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
   if (!winner || !winner.url) {
-    throw new Error("Cloud GPU Text-to-Video space busy");
+    throw lastErr || new Error("Cloud GPU Text-to-Video spaces busy");
   }
 
   const rawMp4File = `${clipId}-raw.mp4`;
@@ -559,7 +570,7 @@ async function dispatchFreeCloudGpuTextToVideo(clipId, compiled, body) {
     mp4Url: `/renders/${finalMp4File}`,
     remoteVideoUrl: winner.url,
     seed,
-    providerUsed: `DAFE.ILD Text-to-Video Diffusion (${winner.provider})`,
+    providerUsed: `DAFEILD Text-to-Video Diffusion (${winner.provider})`,
     mode: "cloud-mp4"
   };
 }
@@ -571,10 +582,12 @@ async function dispatchFreeCloudGpuTextToVideo(clipId, compiled, body) {
  *     from the user's prompt and encodes a 24fps H.264 (avc1/yuv420p) + Stereo AAC .MP4 video with FFmpeg!
  */
 async function generateFreeKeylessAiFrameAndMp4(clipId, compiled, body) {
-  // 1. Try Cloud GPU Text-to-Video Diffusion (fast 12s timeout so user never waits long if ZeroGPU is in cooldown)
+  // 1. Try Cloud GPU Text-to-Video Diffusion
+  let cloudNotice = null;
   try {
     return await dispatchFreeCloudGpuTextToVideo(clipId, compiled, body);
-  } catch (_) {
+  } catch (err) {
+    cloudNotice = `Free Cloud GPU notice: ${err.message}`;
     // Proceed immediately to Progressive AI Video Synthesis + FFmpeg H.264/AAC Encoder
   }
 
@@ -642,8 +655,9 @@ async function generateFreeKeylessAiFrameAndMp4(clipId, compiled, body) {
     mp4Url: `/renders/${mp4Filename}`,
     remoteFrameUrl: url1,
     seed,
-    providerUsed: `DAFE.ILD Multi-Beat AI Video + FFmpeg H.264/AAC (${compiled.model.name.split("—")[0].trim()})`,
-    mode: "ai-mp4"
+    providerUsed: `DAFEILD Multi-Beat AI Video + FFmpeg H.264/AAC (${compiled.model.name.split("—")[0].trim()})`,
+    mode: "ai-mp4",
+    cloudNotice
   };
 }
 
@@ -924,7 +938,7 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
       frameUrl: uploadedKeyframeUrl,
       videoUrl: `/renders/${mp4Filename}`,
       mp4Url: `/renders/${mp4Filename}`,
-      providerUsed: `DAFE.ILD I2V Keyframe H.264 Animator (${compiled.model.name.split("—")[0].trim()})`,
+      providerUsed: `DAFEILD I2V Keyframe H.264 Animator (${compiled.model.name.split("—")[0].trim()})`,
       mode: "ai-mp4",
       logs
     };
@@ -933,6 +947,7 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
   // 6. Execute 100% Free Keyless Multi-Beat AI Generation + FFmpeg H.264/AAC MP4 Encoder
   try {
     const freeRes = await generateFreeKeylessAiFrameAndMp4(clipId, compiled, body);
+    if (freeRes.cloudNotice) logs.push(freeRes.cloudNotice);
     return { ...freeRes, logs };
   } catch (err) {
     logs.push(`Free AI Frame fetch notice: ${err.message}`);
@@ -958,7 +973,7 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
       frameUrl: null,
       videoUrl: `/renders/${mp4Filename}`,
       mp4Url: `/renders/${mp4Filename}`,
-      providerUsed: `DAFE.ILD Local H.264 Synth (${compiled.model.name.split("—")[0].trim()})`,
+      providerUsed: `DAFEILD Local H.264 Synth (${compiled.model.name.split("—")[0].trim()})`,
       mode: "local-mp4",
       logs
     };
@@ -1115,7 +1130,7 @@ function recognizeSceneProfile(clip) {
 async function generateAiBridgePrompt(prevClip, nextClip, prevProfile, nextProfile, originalStory = "") {
   try {
     const sys =
-      "You are DAFE.ILD AI Continuity Director. Write a single 1-sentence photorealistic text-to-video bridge shot prompt (max 38 words) that visually transitions from Shot A to Shot B while maintaining character identity, lighting progression, and the user's story.";
+      "You are DAFEILD AI Continuity Director. Write a single 1-sentence photorealistic text-to-video bridge shot prompt (max 38 words) that visually transitions from Shot A to Shot B while maintaining character identity, lighting progression, and the user's story.";
     const usr = `Story context: ${originalStory || "Seamless cinema feature"}\nShot A (${prevProfile.setting}, ${prevProfile.lighting}, Character: ${prevProfile.character}): ${prevClip.prompt}\nShot B (${nextProfile.setting}, ${nextProfile.lighting}, Character: ${nextProfile.character}): ${nextClip.prompt}\nOutput ONLY the 1-sentence bridge shot visual prompt:`;
     const aiText = await callFreeAiLlm(sys, usr);
     if (aiText && aiText.length > 15) {

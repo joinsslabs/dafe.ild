@@ -1,5 +1,5 @@
 /**
- * DAFE.ILD Studio — Main Web & API Server + Real AI MP4 Engine + MCP Bridge
+ * DAFEILD Studio — Main Web & API Server + Real AI MP4 Engine + MCP Bridge
  */
 
 const http = require("http");
@@ -152,7 +152,7 @@ function ensureInitialDemoClips() {
       durationSec: 300,
       aspectRatio: "2.39:1",
       status: "completed",
-      providerUsed: "DAFE.ILD Free AI + Google Flow MP4 Engine ($0.00)"
+      providerUsed: "DAFEILD Free AI + Google Flow MP4 Engine ($0.00)"
     },
     {
       id: "clip-demo-2",
@@ -174,7 +174,7 @@ function ensureInitialDemoClips() {
       durationSec: 180,
       aspectRatio: "16:9",
       status: "completed",
-      providerUsed: "DAFE.ILD + Google Flow Gemini Omni 1.2 Flash ($0.04)"
+      providerUsed: "DAFEILD + Google Flow Gemini Omni 1.2 Flash ($0.04)"
     },
     {
       id: "clip-demo-3",
@@ -196,7 +196,7 @@ function ensureInitialDemoClips() {
       durationSec: 300,
       aspectRatio: "16:9",
       status: "completed",
-      providerUsed: "DAFE.ILD Free AI + LTX-2.5 5-Min MP4 Engine ($0.02)"
+      providerUsed: "DAFEILD Free AI + LTX-2.5 5-Min MP4 Engine ($0.02)"
     }
   ];
 
@@ -565,7 +565,7 @@ const server = http.createServer(async (req, res) => {
         qualityScore: 9.6,
         hfRepo: (body.hfRepo || "Lightricks/LTX-Video").trim(),
         falEndpoint: (body.falEndpoint || "https://fal.run/fal-ai/wan-t2v").trim(),
-        description: (body.description || `Custom imported model (${rawName}) routed through DAFE.ILD's 24fps H.264 + AAC .MP4 cinema engine.`).trim()
+        description: (body.description || `Custom imported model (${rawName}) routed through DAFEILD's 24fps H.264 + AAC .MP4 cinema engine.`).trim()
       };
 
       state.customModels.unshift(newModel);
@@ -743,7 +743,7 @@ server.listen(PORT, () => {
   ensureInitialDemoClips();
   hydrateMissingFramesAndMp4InBackground();
   console.log(`\n==================================================================`);
-  console.log(`🎬 DAFE.ILD AI Video Studio + Real MP4 Engine running at:`);
+  console.log(`🎬 DAFEILD AI Video Studio + Real MP4 Engine running at:`);
   console.log(`   👉 Web Studio:   http://localhost:${PORT}`);
   console.log(`   🔌 MCP JSON-RPC: http://localhost:${PORT}/api/mcp/rpc`);
   console.log(`   💻 MCP Stdio:    node "${path.join(__dirname, "mcp-server.js")}"`);

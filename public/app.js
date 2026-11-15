@@ -1,5 +1,5 @@
 /**
- * DAFE.ILD Studio — Master Application Engine
+ * DAFEILD Studio — Master Application Engine
  * Google Flow & Free AI Video Generation, 2.5D Higgsfield Camera Motion Synthesizer,
  * Native 5-Minute (.MP4) Video Disk Persistence, Soul ID Vault & Live MCP Inspector
  */
@@ -221,7 +221,7 @@ async function initStudio() {
     setTimeout(refreshCatalogAssetsSilently, 4500);
     setTimeout(refreshCatalogAssetsSilently, 10000);
   } catch (err) {
-    console.error("Failed to initialize DAFE.ILD Studio:", err);
+    console.error("Failed to initialize DAFEILD Studio:", err);
   }
 }
 
@@ -868,6 +868,8 @@ function toggleProceduralSoundscape(soundId) {
     activeAudioNodes = [];
   }
   if (!soundId || soundId === "none" || state.isMuted) return;
+  // Never layer Web Audio noise/synth on top of the native MP4 player (prevents double-audio gabble)
+  if (state.useNativeVideoPlayer) return;
 
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -875,7 +877,6 @@ function toggleProceduralSoundscape(soundId) {
     if (!activeAudioCtx) activeAudioCtx = new AudioContextClass();
     if (activeAudioCtx.state === "suspended") activeAudioCtx.resume();
 
-    const preset = state.audioSoundscapes.find((a) => a.id === soundId) || { baseFreq: 55 };
     const baseFreq = 55; // Grounded 55Hz cinematic sub drone
 
     // Pure warm cinematic orchestra pad (fundamental A1 55Hz + perfect fifth E2 82.5Hz + octave A2 110Hz)
@@ -885,52 +886,25 @@ function toggleProceduralSoundscape(soundId) {
     const masterGain = activeAudioCtx.createGain();
 
     osc1.type = "sine";
-    osc1.frequency.value = baseFreq; // 55Hz
+    osc1.frequency.value = baseFreq;
     osc2.type = "sine";
-    osc2.frequency.value = baseFreq * 1.5; // 82.5Hz (Harmonic fifth)
+    osc2.frequency.value = baseFreq * 1.5;
     oscSub.type = "sine";
-    oscSub.frequency.value = baseFreq * 2.0; // 110Hz (Lush warm octave)
+    oscSub.frequency.value = baseFreq * 2.0;
 
-    // Soft low-pass filtered velvet room ambience (strictly zero gabble / zero speech noise)
-    const bufferSize = activeAudioCtx.sampleRate * 2;
-    const noiseBuffer = activeAudioCtx.createBuffer(1, bufferSize, activeAudioCtx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-    let lastOut = 0.0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      output[i] = (lastOut + 0.015 * white) / 1.015; // smooth Brownian/pink roll-off
-      lastOut = output[i];
-      output[i] *= 0.18;
-    }
-    const ambientAir = activeAudioCtx.createBufferSource();
-    ambientAir.buffer = noiseBuffer;
-    ambientAir.loop = true;
-
-    const filter = activeAudioCtx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.value = soundId === "rain-neon" ? 650 : soundId === "solar-wind" ? 420 : 280;
-    filter.Q.value = 0.5;
-
-    const airGain = activeAudioCtx.createGain();
-    airGain.gain.value = 0.05;
-
-    // Smooth cinematic swell with zero harsh clicks or robotic gabble
+    // Smooth cinematic swell with zero noise buffers or gabble
     masterGain.gain.setValueAtTime(0.001, activeAudioCtx.currentTime);
-    masterGain.gain.exponentialRampToValueAtTime(0.08, activeAudioCtx.currentTime + 1.2);
+    masterGain.gain.exponentialRampToValueAtTime(0.06, activeAudioCtx.currentTime + 1.2);
 
     osc1.connect(masterGain);
     osc2.connect(masterGain);
     oscSub.connect(masterGain);
-    ambientAir.connect(filter);
-    filter.connect(airGain);
-    airGain.connect(activeAudioCtx.destination);
     masterGain.connect(activeAudioCtx.destination);
 
     osc1.start();
     osc2.start();
     oscSub.start();
-    ambientAir.start();
-    activeAudioNodes.push(osc1, osc2, oscSub, ambientAir, filter, airGain, masterGain);
+    activeAudioNodes.push(osc1, osc2, oscSub, masterGain);
   } catch (_) {}
 }
 
@@ -1342,7 +1316,7 @@ function renderGallery() {
           <div>
             ${downloadLinksHtml}
             <div class="shot-footer">
-              <span>${clip.providerUsed ? clip.providerUsed.slice(0, 26) : "DAFE.ILD H.264 MP4"}</span>
+              <span>${clip.providerUsed ? clip.providerUsed.slice(0, 26) : "DAFEILD H.264 MP4"}</span>
               <div style="display:flex;gap:6px;align-items:center;">
                 <button class="btn-delete-shot" data-del-id="${clip.id}" title="Remove this scene from studio">✕ Remove</button>
                 <button class="btn-add-timeline" data-add-id="${clip.id}">+ Add to Movie</button>
@@ -1637,7 +1611,7 @@ function renderTimeline() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: "DAFE.ILD Master Movie"
+            title: "DAFEILD Master Movie"
           })
         });
         const data = await res.json();

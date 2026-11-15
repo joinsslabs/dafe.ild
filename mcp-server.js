@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * DAFE.ILD Studio — Model Context Protocol (MCP) Server
+ * DAFEILD Studio — Model Context Protocol (MCP) Server
  * Supports both:
  *   1. Standard MCP over stdio (`node mcp-server.js`) for Antigravity, Claude Desktop, Cursor, etc.
  *   2. Direct programmatic JSON-RPC handler exported for the HTTP/SSE bridge (`/api/mcp/rpc`).
@@ -313,7 +313,7 @@ function loadState() {
     connectedMcpServers: [
       {
         id: "dafeild-local",
-        name: "DAFE.ILD Video & Cinema MCP (Built-in)",
+        name: "DAFEILD Video & Cinema MCP (Built-in)",
         transport: "stdio + http-rpc",
         endpoint: "http://localhost:3456/api/mcp/rpc",
         status: "connected",
@@ -426,7 +426,7 @@ function compileDirectorPrompt({
 function buildComfyWorkflowJson(compiled, clipArgs = {}) {
   return {
     _meta: {
-      generator: "DAFE.ILD Studio — Open-Weights ComfyUI MP4 Exporter",
+      generator: "DAFEILD Studio — Open-Weights ComfyUI MP4 Exporter",
       model: compiled.model.name,
       hfRepo: compiled.model.hfRepo || "Wan-AI/Wan2.1-T2V-1.3B",
       maxDurationSec: 300,
@@ -488,7 +488,7 @@ const MCP_TOOLS = [
   {
     name: "list_video_models",
     description:
-      "List available AI video generation models in DAFE.ILD Studio, including Google Flow (Gemini Omni 1.2 Flash & Free AI Studio Nano Banana), 100% FREE open-source models (Wan 2.1 Free, LTX-Video Free, CogVideoX Free, Mochi 1), and ultra-cheap serverless models ($0.02-$0.14/shot), all supporting up to 5 minutes (300s) MP4 output.",
+      "List available AI video generation models in DAFEILD Studio, including Google Flow (Gemini Omni 1.2 Flash & Free AI Studio Nano Banana), 100% FREE open-source models (Wan 2.1 Free, LTX-Video Free, CogVideoX Free, Mochi 1), and ultra-cheap serverless models ($0.02-$0.14/shot), all supporting up to 5 minutes (300s) MP4 output.",
     inputSchema: {
       type: "object",
       properties: {
@@ -826,7 +826,7 @@ async function performSceneRecognitionAndAutoPatch({
       aspectRatio: bridgeArgs.aspectRatio,
       status: "completed",
       isAutoPatchedBridge: true,
-      providerUsed: `DAFE.ILD Story Auto-Patcher (${genRes.providerUsed})`
+      providerUsed: `DAFEILD Story Auto-Patcher (${genRes.providerUsed})`
     };
 
     state.generations.unshift(bridgeClip);
@@ -867,7 +867,7 @@ async function performSceneRecognitionAndAutoPatch({
   };
 }
 
-async function performStitchFullMovie({ title = "DAFE.ILD Stitched Master Movie", clipIds = [] } = {}) {
+async function performStitchFullMovie({ title = "DAFEILD Stitched Master Movie", clipIds = [] } = {}) {
   const state = loadState();
   let orderedClips = [];
   if (Array.isArray(clipIds) && clipIds.length > 0) {
@@ -1034,7 +1034,7 @@ async function performScriptToFullMovie({
   saveState(state);
 
   const stitched = await performStitchFullMovie({
-    title: "DAFE.ILD Script-to-Movie Master",
+    title: "DAFEILD Script-to-Movie Master",
     clipIds: createdClips.map((c) => c.id)
   });
 
@@ -1322,7 +1322,7 @@ async function handleMcpJsonRpc(request) {
           resources: [
             {
               uri: "dafeild://models/catalog",
-              name: "DAFE.ILD AI Video Models Catalog (Google Flow, Free & Ultra-Cheap, up to 5m MP4)",
+              name: "DAFEILD AI Video Models Catalog (Google Flow, Free & Ultra-Cheap, up to 5m MP4)",
               mimeType: "application/json"
             },
             {

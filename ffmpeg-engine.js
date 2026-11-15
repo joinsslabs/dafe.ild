@@ -36,7 +36,7 @@ function runFfmpeg(args, timeoutMs = 120000) {
     return Promise.reject(new Error("ffmpeg-static binary not available"));
   }
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { windowsHide: true });
+    const child = spawn(bin, args, { windowsHide: true, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     const timer = setTimeout(() => {
       child.kill();
@@ -178,29 +178,8 @@ async function processRawDiffusionVideo({
  * Per user mandate: NEVER fall back to 2D image zoom at any time. Keeps z='1.0' fixed scale.
  */
 function buildZoompanFilter(cameraStack = [], framesPerSegment = 72, width = 1280, height = 720, segIdx = 0) {
-  const cams = Array.isArray(cameraStack) && cameraStack.length > 0 ? cameraStack : ["dolly-in", "orbit-360", "fpv-drone"];
-  const fallbackModes = ["dolly-in", "orbit-360", "fpv-drone"];
-  const primary = cams[segIdx % cams.length] || fallbackModes[segIdx % fallbackModes.length];
-
-  // Strictly NO ZOOM at any time (z='1.0') — only subtle cinematic horizontal/vertical mechanical track
-  const zExpr = "1.0";
-  let xExpr = `iw/2-(iw/zoom/2)+sin(on/16)*28`;
-  let yExpr = `ih/2-(ih/zoom/2)+cos(on/20)*14`;
-
-  if (primary === "dolly-out" || segIdx === 2) {
-    xExpr = `iw/2-(iw/zoom/2)+cos(on/18)*32`;
-    yExpr = `ih/2-(ih/zoom/2)+sin(on/22)*16`;
-  } else if (primary === "orbit-360" || primary === "parallax-slide" || segIdx === 1) {
-    xExpr = `iw/2-(iw/zoom/2)+sin(on/12)*45`;
-    yExpr = `ih/2-(ih/zoom/2)+cos(on/16)*20`;
-  } else if (primary === "whip-pan") {
-    xExpr = `iw/2-(iw/zoom/2)+((on/${framesPerSegment})-0.5)*60`;
-  } else if (primary === "handheld-doc") {
-    xExpr = `iw/2-(iw/zoom/2)+sin(on/6)*18`;
-    yExpr = `ih/2-(ih/zoom/2)+cos(on/7)*14`;
-  }
-
-  return `scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='${zExpr}':x='${xExpr}':y='${yExpr}':d=${framesPerSegment}:s=${width}x${height}:fps=24,noise=alls=3:allf=t`;
+  // Fast 1280x720 cinema framing without expensive 1080p zoompan/per-frame noise so CPU encoding finishes in ~3s
+  return `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24`;
 }
 
 function buildLutFilter(lutId = "kodak-2383", aspectRatio = "2.39:1", height = 720) {
@@ -359,7 +338,7 @@ async function encodeFallbackH264Mp4({ destMp4Path, durationSec = 6, aspectRatio
   const args = [
     "-y",
     "-f", "lavfi",
-    "-i", `testsrc2=size=${dims.w}x${dims.h}:rate=24:duration=${renderSec}`,
+    "-i", `color=c=0x0b0f19:size=${dims.w}x${dims.h}:rate=24:duration=${renderSec}`,
     "-f", "lavfi",
     "-i", buildCinematicAudioLavfi(renderSec),
     "-vf", `${lutFilter},format=yuv420p`,
