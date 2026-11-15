@@ -2436,18 +2436,31 @@ function updateInlineTokenStatusUI() {
   const hasHf = Boolean(state.apiKeys.hfToken);
   const hasGem = Boolean(state.apiKeys.geminiKey);
   const hasFal = Boolean(state.apiKeys.falKey);
+  const hasOpenai = Boolean(state.apiKeys.openaiKey);
+  const hasRunway = Boolean(state.apiKeys.runwayKey);
+  const hasRep = Boolean(state.apiKeys.replicateKey);
 
-  if (hasHf || hasGem || hasFal) {
+  if (hasHf || hasGem || hasFal || hasOpenai || hasRunway || hasRep) {
     const activeList = [
       hasHf ? "HF ZeroGPU (25x Quota)" : null,
-      hasGem ? "Gemini Veo" : null,
-      hasFal ? "Fal Cloud GPU" : null
+      hasGem ? "Gemini/Veo" : null,
+      hasFal ? "Fal Cloud GPU" : null,
+      hasOpenai ? "OpenAI Sora" : null,
+      hasRunway ? "Runway Gen-4" : null,
+      hasRep ? "Replicate" : null
     ].filter(Boolean).join(" + ");
     badge.textContent = `✓ Active: ${activeList}`;
     badge.style.background = "rgba(16,185,129,0.2)";
     badge.style.color = "#34d399";
     if (quickInput && !quickInput.value) {
-      quickInput.value = state.apiKeys.hfToken || state.apiKeys.geminiKey || state.apiKeys.falKey || "";
+      quickInput.value =
+        state.apiKeys.hfToken ||
+        state.apiKeys.geminiKey ||
+        state.apiKeys.falKey ||
+        state.apiKeys.openaiKey ||
+        state.apiKeys.runwayKey ||
+        state.apiKeys.replicateKey ||
+        "";
     }
   } else {
     badge.textContent = "No token saved (Anonymous 60s/day)";
@@ -2467,6 +2480,12 @@ function saveQuickInlineToken() {
     state.apiKeys.hfToken = raw;
   } else if (raw.startsWith("AIza")) {
     state.apiKeys.geminiKey = raw;
+  } else if (raw.startsWith("sk-")) {
+    state.apiKeys.openaiKey = raw;
+  } else if (raw.startsWith("r8_")) {
+    state.apiKeys.replicateKey = raw;
+  } else if (raw.startsWith("key_")) {
+    state.apiKeys.runwayKey = raw;
   } else if (raw.includes(":") && raw.length > 24) {
     state.apiKeys.falKey = raw;
   } else {
@@ -2508,16 +2527,28 @@ function initApiKeysModal() {
     if (gemInput) gemInput.value = state.apiKeys.geminiKey || "";
     document.getElementById("hfTokenInput").value = state.apiKeys.hfToken || "";
     document.getElementById("falKeyInput").value = state.apiKeys.falKey || "";
+    const openaiInput = document.getElementById("openaiKeyInput");
+    if (openaiInput) openaiInput.value = state.apiKeys.openaiKey || "";
+    const runwayInput = document.getElementById("runwayKeyInput");
+    if (runwayInput) runwayInput.value = state.apiKeys.runwayKey || "";
+    const repInput = document.getElementById("replicateKeyInput");
+    if (repInput) repInput.value = state.apiKeys.replicateKey || "";
     document.getElementById("comfyUrlInput").value = state.apiKeys.comfyUrl || "";
     modal.classList.remove("hidden");
   };
   document.getElementById("closeApiKeysBtn").onclick = () => modal.classList.add("hidden");
   document.getElementById("saveApiKeysBtn").onclick = () => {
     const gemInput = document.getElementById("geminiKeyInput");
+    const openaiInput = document.getElementById("openaiKeyInput");
+    const runwayInput = document.getElementById("runwayKeyInput");
+    const repInput = document.getElementById("replicateKeyInput");
     state.apiKeys = {
       geminiKey: gemInput ? gemInput.value.trim() : "",
       hfToken: document.getElementById("hfTokenInput").value.trim(),
       falKey: document.getElementById("falKeyInput").value.trim(),
+      openaiKey: openaiInput ? openaiInput.value.trim() : "",
+      runwayKey: runwayInput ? runwayInput.value.trim() : "",
+      replicateKey: repInput ? repInput.value.trim() : "",
       comfyUrl: document.getElementById("comfyUrlInput").value.trim()
     };
     localStorage.setItem("dafeild_api_keys", JSON.stringify(state.apiKeys));

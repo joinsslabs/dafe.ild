@@ -1,19 +1,22 @@
-# AetherField Studio — Higgsfield-Inspired AI Video Director + Free/Cheap Model Router + MCP Server
+# DAFE.ILD — AI Video Director + Multi-Model Router + MCP Server
 
-A full-stack AI Video Generation & Cinema Direction Studio inspired by **Higgsfield AI**, built with:
-1. **100% Free & Ultra-Cheap Open-Weights Model Router** (`Wan 2.1 Free`, `LTX-Video 2B Free`, `CogVideoX-2B Free`, `Mochi 1 Free`, plus `$0.02–$0.14/clip` serverless `Wan 2.2 14B MoE`, `LTX 2.5 Audio`, and `HunyuanVideo 13B`).
-2. **Higgsfield Mechanical Cinema Controls**:
-   - **Stacked Camera Moves**: Combine up to 3 physical camera vectors (`Dolly In`, `360° Hero Orbit`, `FPV Drone Dive`, `Jib/Crane Rise`, `Kinetic Whip Pan`, `Dutch Angle Roll`, `Matrix Bullet-Time`, `SnorriCam`, `Crash Zoom`, `Truck Parallax`) with adjustable motion intensity.
-   - **Cinema Optics & Lenses**: `Cooke Anamorphic/i 2x (40mm)`, `ARRI Alexa 65 + Prime DNA (50mm)`, `Panavision C-Series 1970s (35mm)`, `IMAX 15/70mm (28mm)`, `Bolex 16mm Kodak 500T`, `Laowa 24mm Macro Probe`.
-   - **Action Choreography & Interactive Motion Brush**: Draw custom subject trajectories directly on the cinema viewport canvas and export real `.webm` video files.
-   - **Soul ID Vault**: Persistent character & product identity locks (Seed Lock, Face Lock, Outfit Lock, Consistency Weight) across cuts.
+A full-stack AI Video Generation & Cinema Direction Studio (**DAFE.ILD**), built with:
+
+1. **Free, Cheap & Top-Tier Paid Model Router**:
+   - **100% Free & Open-Weights**: `Higgsfield DoP v1.5`, `Higgsfield ReelMagic VFX`, `Google Gemini Omni 1.2 Flash Free`, `SkyReels V1`, `Step-Video-T2V 30B`, `Wan 2.1`, `LTX-Video 2B`, `CogVideoX-2B`, `Mochi 1`.
+   - **Top-Tier Paid Cinema Models**: `Google Veo 3 / Veo 3.1`, `OpenAI Sora 2 Pro`, `Runway Gen-4 Turbo`, `Kling 2.0 Master`, `Luma Ray 2`, `Hailuo MiniMax 02`, `ByteDance Seedance 1.0 Pro`, `Wan 2.2 14B`.
+2. **Mechanical Cinema & Audio Controls**:
+   - **Interactive 3D Camera Trajectory Gizmo** & stacked camera vectors (`Dolly In`, `360° Hero Orbit`, `FPV Drone Dive`, `Jib/Crane Rise`, `Whip Pan`, `Bullet-Time`, `SnorriCam`, `Crash Zoom`).
+   - **Multi-Model Split-Screen Comparison ("Director's Pick")**: Render two models in parallel and pick the winning shot.
+   - **Action-Matched Auto Sound FX / Foley**: Automatic stereo foley + score mixed directly into `.MP4` exports with zero gabble.
+   - **Soul ID Vault**: Persistent character & product identity locks across cuts.
 3. **Native Model Context Protocol (MCP) Server & Client Hub**:
    - Standard JSON-RPC 2.0 MCP Server over `stdio` ([`mcp-server.js`](./mcp-server.js)) and HTTP (`POST /api/mcp/rpc`).
 
 ## Quick Start
 
 ```bash
-cd C:\Users\Dell\.gemini\antigravity\scratch\aetherfield-studio
+cd C:\Users\Dell\.gemini\antigravity\scratch\dafe.ild-studio
 node server.js
 ```
 

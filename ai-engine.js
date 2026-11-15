@@ -157,6 +157,9 @@ const FAL_ENDPOINTS = {
   "runway-gen4-turbo": "https://fal.run/fal-ai/runway-gen3/turbo/image-to-video",
   "openai-sora-2-pro": "https://fal.run/fal-ai/hunyuan-video",
   "luma-ray-2-dream-machine": "https://fal.run/fal-ai/luma-dream-machine/ray-2",
+  "google-veo-3-pro": "https://fal.run/fal-ai/veo3",
+  "kling-2.1-master": "https://fal.run/fal-ai/kling-video/v2.1/master/text-to-video",
+  "openai-sora-2-pro": "https://fal.run/fal-ai/sora-2/text-to-video",
   "hailuo-minimax-director": "https://fal.run/fal-ai/minimax/video-01-director",
   "pika-2.2-cinema": "https://fal.run/fal-ai/pika/v2.2/text-to-video",
   "skyreels-v1-human": "https://fal.run/fal-ai/hunyuan-video",
@@ -620,6 +623,162 @@ const MINIMAL_JPEG_FALLBACK = Buffer.from(
   "base64"
 );
 
+async function dispatchOpenAISora(clipId, compiled, body, openaiKey) {
+  const modelName = compiled.model.openaiModel || "sora-2";
+  const size = body.aspectRatio === "9:16" ? "720x1280" : "1280x720";
+  const res = await rawRequest(
+    "https://api.openai.com/v1/videos",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      model: modelName,
+      prompt: compiled.compiledPrompt,
+      size,
+      seconds: String(Math.min(12, Math.max(4, Number(body.durationSec || 8))))
+    },
+    60000
+  );
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(`OpenAI Sora API HTTP ${res.statusCode}: ${res.text().slice(0, 200)}`);
+  }
+  const job = res.json();
+  const jobId = job.id;
+  if (!jobId) throw new Error("OpenAI Sora did not return a video job id");
+
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const poll = await rawRequest(
+      `https://api.openai.com/v1/videos/${jobId}`,
+      { method: "GET", headers: { Authorization: `Bearer ${openaiKey}` } },
+      null,
+      15000
+    );
+    if (poll.statusCode >= 200 && poll.statusCode < 300) {
+      const pData = poll.json();
+      if (pData.status === "completed") {
+        const dl = await downloadToRenders(
+          `https://api.openai.com/v1/videos/${jobId}/content`,
+          `${clipId}.mp4`,
+          { Authorization: `Bearer ${openaiKey}` },
+          45000
+        );
+        return {
+          ok: true,
+          videoUrl: dl.publicUrl,
+          mp4Url: dl.publicUrl,
+          providerUsed: `OpenAI Sora (${modelName})`,
+          mode: "cloud-mp4"
+        };
+      }
+      if (pData.status === "failed") {
+        throw new Error(pData.error?.message || "OpenAI Sora job failed");
+      }
+    }
+  }
+  throw new Error("OpenAI Sora polling timed out");
+}
+
+async function dispatchRunwayApi(clipId, compiled, body, runwayKey) {
+  const modelName = compiled.model.runwayModel || "gen4_turbo";
+  const res = await rawRequest(
+    "https://api.dev.runwayml.com/v1/text_to_video",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${runwayKey}`,
+        "X-Runway-Version": "2024-11-06",
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      model: modelName,
+      promptText: compiled.compiledPrompt.slice(0, 1000),
+      ratio: body.aspectRatio === "9:16" ? "720:1280" : "1280:720",
+      duration: Math.min(10, Math.max(5, Number(body.durationSec || 5)))
+    },
+    45000
+  );
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(`Runway API HTTP ${res.statusCode}: ${res.text().slice(0, 200)}`);
+  }
+  const taskId = res.json().id;
+  if (!taskId) throw new Error("Runway API did not return a task id");
+
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    const poll = await rawRequest(
+      `https://api.dev.runwayml.com/v1/tasks/${taskId}`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${runwayKey}`, "X-Runway-Version": "2024-11-06" }
+      },
+      null,
+      15000
+    );
+    if (poll.statusCode >= 200 && poll.statusCode < 300) {
+      const pData = poll.json();
+      if (pData.status === "SUCCEEDED" && pData.output?.[0]) {
+        const dl = await downloadToRenders(pData.output[0], `${clipId}.mp4`, {}, 45000);
+        return {
+          ok: true,
+          videoUrl: dl.publicUrl,
+          mp4Url: dl.publicUrl,
+          remoteVideoUrl: pData.output[0],
+          providerUsed: `RunwayML (${modelName})`,
+          mode: "cloud-mp4"
+        };
+      }
+      if (pData.status === "FAILED") {
+        throw new Error(pData.failure || "Runway task failed");
+      }
+    }
+  }
+  throw new Error("Runway polling timed out");
+}
+
+async function dispatchReplicateVideo(clipId, compiled, body, replicateKey) {
+  const res = await rawRequest(
+    "https://api.replicate.com/v1/models/wavespeedai/wan-2.1-t2v-720p/predictions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${replicateKey}`,
+        "Content-Type": "application/json",
+        Prefer: "wait=60"
+      }
+    },
+    {
+      input: {
+        prompt: compiled.compiledPrompt,
+        aspect_ratio: body.aspectRatio === "9:16" ? "9:16" : "16:9"
+      }
+    },
+    65000
+  );
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    throw new Error(`Replicate API HTTP ${res.statusCode}: ${res.text().slice(0, 200)}`);
+  }
+  const pred = res.json();
+  const vidUrl = Array.isArray(pred.output) ? pred.output[0] : pred.output;
+  if (typeof vidUrl === "string" && vidUrl.startsWith("http")) {
+    const dl = await downloadToRenders(vidUrl, `${clipId}.mp4`, {}, 45000);
+    return {
+      ok: true,
+      videoUrl: dl.publicUrl,
+      mp4Url: dl.publicUrl,
+      remoteVideoUrl: vidUrl,
+      providerUsed: `Replicate Cloud (${compiled.model.name})`,
+      mode: "cloud-mp4"
+    };
+  }
+  throw new Error("Replicate prediction did not complete with a video URL");
+}
+
 async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJson) {
   const apiKeys = body.apiKeys || {};
   const logs = [];
@@ -653,6 +812,28 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
     }
   }
 
+  // 1b. Try OpenAI Sora API if openaiKey or OPENAI_API_KEY is available
+  const activeOpenaiKey = apiKeys.openaiKey || process.env.OPENAI_API_KEY;
+  if (activeOpenaiKey && (compiled.model.id.includes("sora") || compiled.model.openaiModel)) {
+    try {
+      const soraRes = await dispatchOpenAISora(clipId, compiled, body, activeOpenaiKey);
+      return { ...soraRes, logs };
+    } catch (err) {
+      logs.push(`OpenAI Sora API notice: ${err.message}`);
+    }
+  }
+
+  // 1c. Try RunwayML API if runwayKey or RUNWAY_API_KEY is available
+  const activeRunwayKey = apiKeys.runwayKey || process.env.RUNWAY_API_KEY;
+  if (activeRunwayKey && (compiled.model.id.includes("runway") || compiled.model.runwayModel)) {
+    try {
+      const runwayRes = await dispatchRunwayApi(clipId, compiled, body, activeRunwayKey);
+      return { ...runwayRes, logs };
+    } catch (err) {
+      logs.push(`RunwayML API notice: ${err.message}`);
+    }
+  }
+
   // 2. Try Local ComfyUI if configured
   if (apiKeys.comfyUrl && apiKeys.comfyUrl.startsWith("http")) {
     try {
@@ -664,13 +845,25 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
     }
   }
 
-  // 3. Try Fal.ai if user provided falKey
-  if (apiKeys.falKey) {
+  // 3. Try Fal.ai if user provided falKey or FAL_KEY
+  const activeFalKey = apiKeys.falKey || process.env.FAL_KEY;
+  if (activeFalKey) {
     try {
-      const falRes = await dispatchFalVideo(clipId, compiled, body, apiKeys.falKey);
+      const falRes = await dispatchFalVideo(clipId, compiled, body, activeFalKey);
       return { ...falRes, logs };
     } catch (err) {
       logs.push(`Fal.ai notice: ${err.message}`);
+    }
+  }
+
+  // 3b. Try Replicate if user provided replicateKey or REPLICATE_API_TOKEN
+  const activeReplicateKey = apiKeys.replicateKey || process.env.REPLICATE_API_TOKEN;
+  if (activeReplicateKey) {
+    try {
+      const repRes = await dispatchReplicateVideo(clipId, compiled, body, activeReplicateKey);
+      return { ...repRes, logs };
+    } catch (err) {
+      logs.push(`Replicate notice: ${err.message}`);
     }
   }
 
