@@ -626,10 +626,17 @@ async function generateFreeKeylessAiFrameAndMp4(clipId, compiled, body) {
   const mp4Filename = `${clipId}.mp4`;
 
   // Download Beat 1, Beat 2 & Beat 3 for multi-shot progressive action video
-  const dl1 = await downloadToRenders(url1, jpg1Filename, {}, 10000);
+  // Pollinations can take 15-30s on cold prompts; retry once before giving up
+  let dl1;
+  try {
+    dl1 = await downloadToRenders(url1, jpg1Filename, {}, 35000);
+  } catch (_) {
+    await new Promise((r) => setTimeout(r, 1500));
+    dl1 = await downloadToRenders(url1.replace(`seed=${seed}`, `seed=${seed + 1}`), jpg1Filename, {}, 35000);
+  }
   const [dl2, dl3] = await Promise.all([
-    downloadToRenders(url2, jpg2Filename, {}, 8000).catch(() => null),
-    downloadToRenders(url3, jpg3Filename, {}, 8000).catch(() => null)
+    downloadToRenders(url2, jpg2Filename, {}, 30000).catch(() => null),
+    downloadToRenders(url3, jpg3Filename, {}, 30000).catch(() => null)
   ]);
 
   const framePaths = [dl1.destPath];
@@ -960,12 +967,14 @@ async function executeRealGeneration(clipId, compiled, body, buildComfyWorkflowJ
         aspectRatio: body.aspectRatio || "2.39:1",
         lutId: compiled.lut ? compiled.lut.id : "kodak-2383"
       });
-    } catch (_) {
-      createMp4FromJpegBuffer(MINIMAL_JPEG_FALLBACK, destMp4Path, {
-        width: 1280,
-        height: 720,
-        durationSec: Number(body.durationSec || 5),
-        fps: 12
+    } catch (fbErr) {
+      logs.push(`Fallback encoder retry: ${fbErr.message}`);
+      // Retry once (CPU may be busy with a parallel render) — never ship a broken 1x2 MJPEG file
+      await encodeFallbackH264Mp4({
+        destMp4Path,
+        durationSec: 5,
+        aspectRatio: body.aspectRatio || "16:9",
+        lutId: "arri-logc3"
       });
     }
     return {
