@@ -1,5 +1,5 @@
 /**
- * DAFEILD Studio - Shared Catalog of AI Video Models (including Google Flow / Gemini Omni 1.2 Flash
+ * Dafeild Studio - Shared Catalog of AI Video Models (including Google Flow / Gemini Omni 1.2 Flash
  * & Free AI Studio Models), Higgsfield Camera Rigs, Cinema Optics, Motion Presets, VFX Mixes, and Soul IDs.
  * Supports Long-Form AI Video Generation up to 5 Minutes (300 seconds).
  */
@@ -82,7 +82,7 @@ const VIDEO_MODELS = [
     qualityScore: 9.6,
     geminiModel: "gemini-3.1-flash-lite-image",
     hfRepo: "google/gemini-omni-1.2-flash",
-    description: "Google Cloud's multimodal video engine paired with DAFEILD's 5-minute MP4 scene stitcher and automatic story continuity."
+    description: "Google Cloud's multimodal video engine paired with Dafeild's 5-minute MP4 scene stitcher and automatic story continuity."
   },
   {
     id: "skyreels-v1-human",

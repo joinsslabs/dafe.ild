@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DAFEILD — AI Cinema Master &amp; Neural Movie Studio</title>
+  <title>Dafeild — AI Cinema Master &amp; Neural Movie Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
           <circle cx="12" cy="12" r="3.2" stroke="#00f0ff" stroke-width="1.4" />
         </svg>
       </div>
-      <span class="brand-title">DAFEILD</span>
+      <span class="brand-title">Dafeild</span>
     </div>
 
     <nav class="nav-segmented" role="tablist">
@@ -39,6 +39,7 @@
         <span id="headerModelName" class="engine-name">Google Gemini Omni 1.2</span>
         <span id="headerModelCost" class="cost-badge">FREE</span>
       </div>
+      <button class="btn-ghost" id="openPricingBtn" title="Plans & Credits — Free vs Pro vs Studio">💎 Plans &amp; Credits</button>
       <button class="btn-ghost" id="openApiKeysBtn" title="Configure Cloud GPU Nodes &amp; API Keys">⚡ Cloud GPU &amp; Keys</button>
     </div>
   </header>
@@ -230,6 +231,27 @@
             </button>
           </div>
 
+          <!-- Reference Character / Face / Product Uploader (Higgsfield Style) -->
+          <div class="reference-uploader-bar" id="referenceUploaderBar">
+            <div class="reference-upload-pill" id="referenceUploadPill" title="Drop or upload a face, character, or product image to lock identity across cuts">
+              <input type="file" id="referenceFileInput" accept="image/*" class="file-hidden" />
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span id="referenceUploadText">+ Reference Face / Character / Product (Identity Lock)</span>
+            </div>
+            <div class="reference-preview-box hidden" id="referencePreviewBox">
+              <img id="referencePreviewImg" src="" alt="Reference Preview" />
+              <div class="reference-meta">
+                <span class="reference-name" id="referenceFileName">face-reference.jpg</span>
+                <span class="reference-lock-tag">🔒 Soul 2.0 Locked</span>
+              </div>
+              <button type="button" class="btn-clear-ref" id="clearReferenceBtn" title="Remove reference image">✕</button>
+            </div>
+          </div>
+
           <!-- Live Creation Status Strip (Shown while generating) -->
           <div id="promptCreationStatus" class="prompt-creation-status hidden">
             <span class="status-spinner"></span>
@@ -370,6 +392,22 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Higgsfield 360° Angles Compass -->
+              <div class="angle-compass-block">
+                <div class="section-row" style="margin-bottom:4px;">
+                  <span class="section-label" style="margin:0;">Higgsfield 360° Angles</span>
+                  <span style="font-size:10px;color:var(--text-tertiary);font-family:var(--font-mono);">Instant Perspective Lock</span>
+                </div>
+                <div class="angle-compass-grid">
+                  <button type="button" class="btn-angle-chip active" data-angle="front" data-az="0" data-el="10">Front 0°</button>
+                  <button type="button" class="btn-angle-chip" data-angle="profile" data-az="90" data-el="10">Profile 90°</button>
+                  <button type="button" class="btn-angle-chip" data-angle="hero" data-az="45" data-el="-12">Hero 45°</button>
+                  <button type="button" class="btn-angle-chip" data-angle="back" data-az="180" data-el="10">Back 180°</button>
+                  <button type="button" class="btn-angle-chip" data-angle="overhead" data-az="0" data-el="70">Overhead</button>
+                  <button type="button" class="btn-angle-chip" data-angle="low" data-az="0" data-el="-35">Low-Angle</button>
+                </div>
+              </div>
               <div class="active-rig-chips" id="activeCameraStackBar"></div>
               <div class="camera-grid" id="cameraPresetGrid"></div>
             </div>
@@ -484,7 +522,7 @@
       <div class="section-container">
         <div class="hero-block">
           <div class="hero-left">
-            <span class="badge-kicker">DAFEILD MULTI-PLATFORM MODEL HUB</span>
+            <span class="badge-kicker">Dafeild Multi-Platform Model Hub</span>
             <h1>Higgsfield AI, Major Movie Platforms &amp; 100% Free Video Models</h1>
             <p>Deploy Higgsfield DoP &amp; ReelMagic, Kling 2.0 Master, Runway Gen-4, OpenAI Sora, Google Flow/Veo, Luma Ray 2, Hailuo Director, Pika 2.2, SkyReels V1, and Wan 2.1/2.2 — or import any model below.</p>
           </div>
@@ -562,7 +600,7 @@
         <div class="hero-block">
           <div>
             <span class="badge-kicker">CHARACTER CONSISTENCY</span>
-            <h1>DAFEILD Character &amp; Scene Identity Vault</h1>
+            <h1>Dafeild Character &amp; Scene Identity Vault</h1>
             <p>Lock character faces, outfits, and product geometry so every stitched scene in your movie shares the same protagonist.</p>
           </div>
         </div>
@@ -611,7 +649,7 @@
         <div class="hero-block">
           <div>
             <span class="badge-kicker">MODEL CONTEXT PROTOCOL</span>
-            <h1>DAFEILD MCP Server &amp; Client Hub</h1>
+            <h1>Dafeild MCP Server &amp; Client Hub</h1>
             <p>Connect Antigravity, Claude Desktop, or Cursor to generate, auto-patch, and stitch full .MP4 movies via JSON-RPC 2.0.</p>
           </div>
         </div>
@@ -665,7 +703,7 @@
   <div class="modal-overlay hidden" id="apiKeysModal">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>⚡ DAFEILD Cloud GPU Cluster &amp; API Keys</h3>
+        <h3>⚡ Dafeild Cloud GPU Cluster &amp; API Keys</h3>
         <button class="modal-close-btn" id="closeApiKeysBtn">&times;</button>
       </div>
       <div class="modal-body">
@@ -764,6 +802,98 @@
     </div>
   </div>
 
-  <script src="/app.js?v=7"></script>
+  <!-- MODAL: HIGGSFIELD VS DAFEILD PLANS & CREDITS -->
+  <div class="modal-overlay hidden" id="pricingPlansModal">
+    <div class="modal-dialog modal-dialog-wide">
+      <div class="modal-header">
+        <div>
+          <h3>💎 Dafeild Cinema Plans &amp; Credit System</h3>
+          <span style="font-size:11px;color:var(--text-tertiary);">Compare with Higgsfield AI ($19–$375/mo) — Zero Markup with BYOK + Unlimited Free Open-Weights</span>
+        </div>
+        <button class="modal-close-btn" id="closePricingBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="pricing-grid">
+          <!-- TIER 1: FREE -->
+          <div class="pricing-card" data-plan="free">
+            <div class="pricing-card-header">
+              <span class="pricing-tier-tag">100% FREE</span>
+              <h4 class="pricing-tier-title">Community Creator</h4>
+              <div class="pricing-price-wrap">
+                <span class="pricing-currency">$</span>
+                <span class="pricing-amount">0</span>
+                <span class="pricing-period">/ forever</span>
+              </div>
+              <p class="pricing-desc">Unlimited generation on open-weights video models with zero subscription fees.</p>
+            </div>
+            <ul class="pricing-features-list">
+              <li>✓ Unlimited Wan 2.1 Fast &amp; CogVideoX-5B</li>
+              <li>✓ LTX-Video &amp; Pollinations Multi-Beat AI</li>
+              <li>✓ 360° Angle Compass &amp; 3D Camera Gizmo</li>
+              <li>✓ Bring Your Own Key (BYOK) with $0 markup</li>
+              <li>✓ Real 24fps H.264 .MP4 Video Exports</li>
+              <li>✕ Standard cloud queue speed</li>
+            </ul>
+            <button type="button" class="btn-tier-select active" data-plan-id="free">Current Active Plan</button>
+          </div>
+
+          <!-- TIER 2: DIRECTOR PRO (FEATURED) -->
+          <div class="pricing-card featured" data-plan="pro">
+            <div class="pricing-badge-popular">MOST POPULAR • HIGGSFIELD PRO MATCH</div>
+            <div class="pricing-card-header">
+              <span class="pricing-tier-tag gold">DIRECTOR PASS</span>
+              <h4 class="pricing-tier-title">Director Pro</h4>
+              <div class="pricing-price-wrap">
+                <span class="pricing-currency">$</span>
+                <span class="pricing-amount">49</span>
+                <span class="pricing-period">/ month</span>
+              </div>
+              <p class="pricing-desc">High-speed priority cluster for indie filmmakers and commercial directors.</p>
+            </div>
+            <ul class="pricing-features-list">
+              <li>✓ <strong>1,200 High-Speed Priority Credits</strong></li>
+              <li>✓ Kling 2.1 Master &amp; ByteDance Seedance 1.0</li>
+              <li>✓ Runway Gen-4 Turbo &amp; Google Veo 3.0</li>
+              <li>✓ Soul 2.0 Reference Face &amp; Identity Lock</li>
+              <li>✓ Priority ZeroGPU queue (sub-10s turnaround)</li>
+              <li>✓ Full 1080p CinemaScope Rendering</li>
+            </ul>
+            <button type="button" class="btn-tier-select btn-primary" data-plan-id="pro">Upgrade to Director ($49/mo)</button>
+          </div>
+
+          <!-- TIER 3: STUDIO ULTRA -->
+          <div class="pricing-card" data-plan="studio">
+            <div class="pricing-card-header">
+              <span class="pricing-tier-tag emerald">STUDIO PRODUCTION</span>
+              <h4 class="pricing-tier-title">Studio Ultra</h4>
+              <div class="pricing-price-wrap">
+                <span class="pricing-currency">$</span>
+                <span class="pricing-amount">149</span>
+                <span class="pricing-period">/ month</span>
+              </div>
+              <p class="pricing-desc">For film production studios, agencies, and full-length cinema workflows.</p>
+            </div>
+            <ul class="pricing-features-list">
+              <li>✓ <strong>5,000 Ultra Priority Credits</strong></li>
+              <li>✓ Long-Form 5-Minute Continuous Video Stitching</li>
+              <li>✓ Multi-Model Split-Screen Parallel Rendering</li>
+              <li>✓ Dedicated ComfyUI &amp; MCP Agent Orchestration</li>
+              <li>✓ Commercial Rights &amp; ProRes/4K Upscale</li>
+              <li>✓ VIP Support &amp; Custom LoRA Character Training</li>
+            </ul>
+            <button type="button" class="btn-tier-select" data-plan-id="studio">Get Studio Ultra ($149/mo)</button>
+          </div>
+        </div>
+
+        <div class="callout-box" style="margin-top:16px;">
+          <strong>💡 Why Dafeild Beats Higgsfield AI:</strong><br/>
+          • <strong>Higgsfield</strong> charges $19 to $375/month with non-rollover credits that expire, and locks model APIs.<br/>
+          • <strong>Dafeild</strong> lets you stay on the <strong>$0 Free Tier forever</strong> while adding your own direct developer API keys (Google Cloud, Fal.ai, OpenAI, Runway) in <em>⚡ Cloud GPU &amp; Keys</em> for pure at-cost pricing ($0.04–$0.20/clip) with zero monthly markup!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=8"></script>
 </body>
 </html>

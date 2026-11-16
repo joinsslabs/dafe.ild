@@ -1,6 +1,6 @@
-# DAFEILD — AI Video Director + Multi-Model Router + MCP Server
+# Dafeild — AI Video Director + Multi-Model Router + MCP Server
 
-A full-stack AI Video Generation & Cinema Direction Studio (**DAFEILD**), built with:
+A full-stack AI Video Generation & Cinema Direction Studio (**Dafeild**), built with:
 
 1. **Free, Cheap & Top-Tier Paid Model Router**:
    - **100% Free & Open-Weights**: `Higgsfield DoP v1.5`, `Higgsfield ReelMagic VFX`, `Google Gemini Omni 1.2 Flash Free`, `SkyReels V1`, `Step-Video-T2V 30B`, `Wan 2.1`, `LTX-Video 2B`, `CogVideoX-2B`, `Mochi 1`.

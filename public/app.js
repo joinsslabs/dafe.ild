@@ -1,5 +1,5 @@
 /**
- * DAFEILD Studio — Master Application Engine
+ * Dafeild Studio — Master Application Engine
  * Google Flow & Free AI Video Generation, 2.5D Higgsfield Camera Motion Synthesizer,
  * Native 5-Minute (.MP4) Video Disk Persistence, Soul ID Vault & Live MCP Inspector
  */
@@ -211,6 +211,8 @@ async function initStudio() {
     renderMcpHub();
     initCostCalculator();
     initApiKeysModal();
+    initReferenceUploader();
+    initPricingPlansModal();
     initCamera3dGizmo();
     initSplitCompareModal();
     initKeyboardShortcuts();
@@ -221,7 +223,7 @@ async function initStudio() {
     setTimeout(refreshCatalogAssetsSilently, 4500);
     setTimeout(refreshCatalogAssetsSilently, 10000);
   } catch (err) {
-    console.error("Failed to initialize DAFEILD Studio:", err);
+    console.error("Failed to initialize Dafeild Studio:", err);
   }
 }
 
@@ -1178,7 +1180,7 @@ async function executeRenderScene() {
         physicsId: state.selectedPhysicsId || "rigid-realism",
         lutId: state.selectedLutId || "kodak-2383",
         dialogueText: document.getElementById("dialogueTextInput")?.value.trim() || "",
-        keyframeDataUrl: state.keyframeDataUrl || null,
+        keyframeDataUrl: state.referenceImageDataUrl || state.keyframeDataUrl || null,
         aspectRatio: state.aspectRatio,
         durationSec: state.durationSec,
         motionTrajectory: state.motionTrajectory,
@@ -1316,7 +1318,7 @@ function renderGallery() {
           <div>
             ${downloadLinksHtml}
             <div class="shot-footer">
-              <span>${clip.providerUsed ? clip.providerUsed.slice(0, 26) : "DAFEILD H.264 MP4"}</span>
+              <span>${clip.providerUsed ? clip.providerUsed.slice(0, 26) : "Dafeild H.264 MP4"}</span>
               <div style="display:flex;gap:6px;align-items:center;">
                 <button class="btn-delete-shot" data-del-id="${clip.id}" title="Remove this scene from studio">✕ Remove</button>
                 <button class="btn-add-timeline" data-add-id="${clip.id}">+ Add to Movie</button>
@@ -1611,7 +1613,7 @@ function renderTimeline() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: "DAFEILD Master Movie"
+            title: "Dafeild Master Movie"
           })
         });
         const data = await res.json();
@@ -2702,6 +2704,54 @@ function initCamera3dGizmo() {
     });
   });
 
+  // Higgsfield 360° Angle Compass Buttons
+  document.querySelectorAll(".btn-angle-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".btn-angle-chip").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const angle = btn.getAttribute("data-angle");
+      state.selectedAngle = angle;
+      if (angle === "front") {
+        camState.start = { x: 0, y: 0.35, z: 1.6 };
+        camState.end = { x: 0, y: 0.35, z: 0.8 };
+      } else if (angle === "profile") {
+        camState.start = { x: 1.5, y: 0.4, z: 0.1 };
+        camState.end = { x: 0.9, y: 0.4, z: 0.1 };
+      } else if (angle === "hero") {
+        camState.start = { x: 1.1, y: 0.15, z: 1.1 };
+        camState.end = { x: 0.7, y: 0.25, z: 0.7 };
+      } else if (angle === "back") {
+        camState.start = { x: 0, y: 0.45, z: -1.5 };
+        camState.end = { x: 0, y: 0.45, z: -0.7 };
+      } else if (angle === "overhead") {
+        camState.start = { x: 0, y: 1.5, z: 0.3 };
+        camState.end = { x: 0, y: 1.2, z: 0.1 };
+      } else if (angle === "low") {
+        camState.start = { x: 0, y: 0.05, z: 1.4 };
+        camState.end = { x: 0, y: 0.35, z: 0.6 };
+      }
+      drawGizmo();
+      applyTrajectoryToRig();
+
+      // Automatically append or replace perspective tag in prompt
+      const promptInput = document.getElementById("scenePromptInput");
+      if (promptInput) {
+        const labels = {
+          front: "front 0° view",
+          profile: "side profile 90° view",
+          hero: "45° cinematic hero angle",
+          back: "behind-the-back 180° view",
+          overhead: "overhead bird's-eye view",
+          low: "dramatic low-angle tilt"
+        };
+        const tag = labels[angle] || "cinematic camera";
+        let val = promptInput.value.replace(/\s*\[(front 0°|side profile 90°|45° cinematic hero|behind-the-back 180°|overhead bird's-eye|dramatic low-angle)[^\]]*\]/gi, "").trim();
+        promptInput.value = `${val} [${tag}]`;
+        promptInput.focus();
+      }
+    });
+  });
+
   drawGizmo();
 }
 
@@ -2824,6 +2874,135 @@ function initSplitCompareModal() {
 
   pickA.onclick = () => selectWinner(clipA, clipB);
   pickB.onclick = () => selectWinner(clipB, clipA);
+}
+
+// ==================== HIGGSFIELD-STYLE REFERENCE CHARACTER & FACE UPLOADER ====================
+function initReferenceUploader() {
+  const pill = document.getElementById("referenceUploadPill");
+  const fileInput = document.getElementById("referenceFileInput");
+  const previewBox = document.getElementById("referencePreviewBox");
+  const previewImg = document.getElementById("referencePreviewImg");
+  const fileNameEl = document.getElementById("referenceFileName");
+  const clearBtn = document.getElementById("clearReferenceBtn");
+
+  if (!pill || !fileInput) return;
+
+  pill.addEventListener("click", () => fileInput.click());
+
+  function handleFile(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      state.referenceImageDataUrl = dataUrl;
+      state.keyframeDataUrl = dataUrl;
+      state.referenceImageFileName = file.name;
+
+      const img = new Image();
+      img.onload = () => {
+        state.keyframeImage = img;
+      };
+      img.src = dataUrl;
+
+      if (previewImg) previewImg.src = dataUrl;
+      if (fileNameEl) fileNameEl.textContent = file.name;
+      if (previewBox) previewBox.classList.remove("hidden");
+      pill.classList.add("hidden");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    handleFile(file);
+  });
+
+  // Drag and drop onto pill
+  pill.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    pill.style.borderColor = "var(--accent-gold)";
+  });
+  pill.addEventListener("dragleave", () => {
+    pill.style.borderColor = "";
+  });
+  pill.addEventListener("drop", (e) => {
+    e.preventDefault();
+    pill.style.borderColor = "";
+    const file = e.dataTransfer?.files?.[0];
+    handleFile(file);
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.referenceImageDataUrl = null;
+      state.keyframeDataUrl = null;
+      state.keyframeImage = null;
+      state.referenceImageFileName = "";
+      fileInput.value = "";
+      if (previewBox) previewBox.classList.add("hidden");
+      pill.classList.remove("hidden");
+    });
+  }
+}
+
+// ==================== HIGGSFIELD VS DAFEILD PLANS & CREDITS MODAL ====================
+function initPricingPlansModal() {
+  const openBtn = document.getElementById("openPricingBtn");
+  const modal = document.getElementById("pricingPlansModal");
+  const closeBtn = document.getElementById("closePricingBtn");
+  if (!modal) return;
+
+  if (openBtn) {
+    openBtn.onclick = () => {
+      updateActivePlanUI();
+      modal.classList.remove("hidden");
+    };
+  }
+
+  if (closeBtn) {
+    closeBtn.onclick = () => modal.classList.add("hidden");
+  }
+
+  function updateActivePlanUI() {
+    const active = state.activePricingPlan || "free";
+    document.querySelectorAll(".btn-tier-select").forEach((btn) => {
+      const pid = btn.getAttribute("data-plan-id");
+      if (pid === active) {
+        btn.classList.add("active");
+        btn.textContent = "✓ Current Active Plan";
+      } else if (pid === "pro") {
+        btn.classList.remove("active");
+        btn.textContent = "Upgrade to Director ($49/mo)";
+      } else if (pid === "studio") {
+        btn.classList.remove("active");
+        btn.textContent = "Get Studio Ultra ($149/mo)";
+      } else {
+        btn.classList.remove("active");
+        btn.textContent = "Switch to Free Community";
+      }
+    });
+  }
+
+  document.querySelectorAll(".btn-tier-select").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const planId = btn.getAttribute("data-plan-id");
+      state.activePricingPlan = planId;
+      localStorage.setItem("dafeild_pricing_plan", planId);
+      updateActivePlanUI();
+
+      if (openBtn) {
+        const labels = { free: "💎 Community Free", pro: "💎 Director Pro", studio: "💎 Studio Ultra" };
+        openBtn.textContent = labels[planId] || "💎 Plans & Credits";
+      }
+    });
+  });
+
+  const savedPlan = localStorage.getItem("dafeild_pricing_plan");
+  if (savedPlan && openBtn) {
+    const labels = { free: "💎 Community Free", pro: "💎 Director Pro", studio: "💎 Studio Ultra" };
+    openBtn.textContent = labels[savedPlan] || "💎 Plans & Credits";
+  }
 }
 
 window.addEventListener("DOMContentLoaded", initStudio);
