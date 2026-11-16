@@ -50,6 +50,13 @@ const state = {
   keyframeDataUrl: null,
   isSpeakingLipSync: false,
 
+  // Multi-Track Audio Faders
+  voiceVolume: 1.0,
+  foleyVolume: 0.85,
+  scoreVolume: 0.70,
+  renderQuality: "master",
+  endFrameDataUrl: null,
+
   // Cache of loaded Image / Video DOM elements by clip.id
   loadedImages: {},
   loadedVideos: {},
@@ -719,6 +726,109 @@ function refreshSoulDropdown() {
     };
   }
 
+  // Multi-Track Audio Mixer Popover & Faders
+  const toggleMixerBtn = document.getElementById("toggleAudioMixerBtn");
+  const mixerPopover = document.getElementById("audioMixerPopover");
+  if (toggleMixerBtn && mixerPopover) {
+    toggleMixerBtn.onclick = (e) => {
+      e.stopPropagation();
+      mixerPopover.classList.toggle("hidden");
+    };
+    document.addEventListener("click", (e) => {
+      if (!mixerPopover.contains(e.target) && e.target !== toggleMixerBtn) {
+        mixerPopover.classList.add("hidden");
+      }
+    });
+  }
+
+  const voiceSlider = document.getElementById("voiceVolSlider");
+  const voiceVal = document.getElementById("voiceVolVal");
+  if (voiceSlider) {
+    voiceSlider.oninput = (e) => {
+      state.voiceVolume = Number(e.target.value) / 100;
+      if (voiceVal) voiceVal.textContent = `${e.target.value}%`;
+    };
+  }
+
+  const foleySlider = document.getElementById("foleyVolSlider");
+  const foleyVal = document.getElementById("foleyVolVal");
+  if (foleySlider) {
+    foleySlider.oninput = (e) => {
+      state.foleyVolume = Number(e.target.value) / 100;
+      if (foleyVal) foleyVal.textContent = `${e.target.value}%`;
+    };
+  }
+
+  const scoreSlider = document.getElementById("scoreVolSlider");
+  const scoreVal = document.getElementById("scoreVolVal");
+  if (scoreSlider) {
+    scoreSlider.oninput = (e) => {
+      state.scoreVolume = Number(e.target.value) / 100;
+      if (scoreVal) scoreVal.textContent = `${e.target.value}%`;
+      const videoEl = document.getElementById("cinemaVideoPlayer");
+      if (videoEl && !state.isMuted) {
+        videoEl.volume = Math.min(1.0, Math.max(0, state.scoreVolume));
+      }
+    };
+  }
+
+  // Real 9:16 vertical crop (server-side FFmpeg)
+  const tikTokBtn = document.getElementById("exportTikTokCropBtn");
+  if (tikTokBtn) {
+    tikTokBtn.onclick = async () => {
+      const clip = state.activeClip;
+      if (!clip) return alert("Select a clip first.");
+      const span = tikTokBtn.querySelector("span");
+      const label = span.textContent;
+      span.textContent = "Cropping...";
+      tikTokBtn.disabled = true;
+      try {
+        const res = await fetch("/api/export/vertical", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clipId: clip.id })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Crop failed");
+        const a = document.createElement("a");
+        a.href = data.mp4Url;
+        a.download = `${clip.id}-9x16.mp4`;
+        a.click();
+      } catch (err) {
+        alert(`9:16 crop failed: ${err.message}`);
+      } finally {
+        span.textContent = label;
+        tikTokBtn.disabled = false;
+      }
+    };
+  }
+
+  // Real 15s trailer (server-side FFmpeg)
+  const trailerBtn = document.getElementById("exportTrailerBtn");
+  if (trailerBtn) {
+    trailerBtn.onclick = async () => {
+      const span = trailerBtn.querySelector("span");
+      const label = span.textContent;
+      span.textContent = "Building trailer...";
+      trailerBtn.disabled = true;
+      try {
+        const res = await fetch("/api/export/trailer", { method: "POST" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Trailer failed");
+        syncNativeVideoPlayer(data.mp4Url, true);
+        const a = document.createElement("a");
+        a.href = data.mp4Url;
+        a.download = "dafeild-trailer-15s.mp4";
+        a.click();
+      } catch (err) {
+        alert(`Trailer failed: ${err.message}`);
+      } finally {
+        span.textContent = label;
+        trailerBtn.disabled = false;
+      }
+    };
+  }
+
   // Toggle between Native H.264 <video> MP4 Player and Interactive Director Rig HUD Canvas
   const toggleNativeBtn = document.getElementById("toggleNativeVideoBtn");
   if (toggleNativeBtn) {
@@ -1307,7 +1417,7 @@ function renderGallery() {
               <span class="shot-model-name">${clip.modelName.split("—")[0]}</span>
               <span class="shot-price-pill ${isFree ? "free" : "cheap"}">${costStr}</span>
             </div>
-            <div class="shot-prompt-text">${clip.prompt}</div>
+            <div class="shot-prompt-text" title="Right-click to rename title">${clip.prompt}</div>
             <div class="shot-tags-row">
               <span class="shot-tag" style="color:#fbbf24;border-color:rgba(245,158,11,0.35);">✓ ${beatBadge}</span>
               <span class="shot-tag">${cams}</span>
@@ -1331,8 +1441,70 @@ function renderGallery() {
     .join("");
 
   list.querySelectorAll(".shot-card").forEach((card) => {
+    // Right click to edit title
+    const promptEl = card.querySelector(".shot-prompt-text");
+    const cid = card.getAttribute("data-clip-id");
+    const found = state.generations.find((g) => g.id === cid);
+
+    const enableInlineTitleEdit = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!promptEl || promptEl.querySelector("input")) return;
+      const currentTitle = found ? found.prompt : promptEl.textContent.trim();
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "shot-prompt-input-inline";
+      input.value = currentTitle;
+      promptEl.innerHTML = "";
+      promptEl.appendChild(input);
+      input.focus();
+      input.select();
+
+      let isDone = false;
+      const saveTitle = async (newVal) => {
+        if (isDone) return;
+        isDone = true;
+        const cleaned = newVal.trim() || currentTitle;
+        if (found) found.prompt = cleaned;
+        promptEl.textContent = cleaned;
+        if (cleaned !== currentTitle) {
+          try {
+            await fetch(`/api/generations/${encodeURIComponent(cid)}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ prompt: cleaned })
+            });
+            // Also update any matching item on timeline
+            state.timeline.forEach((t) => {
+              if (t.clipId === cid) t.prompt = cleaned;
+            });
+            renderTimeline();
+          } catch (err) {
+            console.error("Failed to update clip title:", err);
+          }
+        }
+      };
+
+      input.addEventListener("keydown", (ke) => {
+        if (ke.key === "Enter") {
+          ke.preventDefault();
+          saveTitle(input.value);
+        } else if (ke.key === "Escape") {
+          ke.preventDefault();
+          isDone = true;
+          promptEl.textContent = currentTitle;
+        }
+      });
+      input.addEventListener("blur", () => saveTitle(input.value));
+    };
+
+    if (promptEl) {
+      promptEl.addEventListener("contextmenu", enableInlineTitleEdit);
+    }
+    card.addEventListener("contextmenu", enableInlineTitleEdit);
+
     card.addEventListener("click", (e) => {
-      if (e.target.classList.contains("btn-add-timeline") || e.target.classList.contains("btn-delete-shot") || e.target.tagName === "A") return;
+      if (e.target.classList.contains("btn-add-timeline") || e.target.classList.contains("btn-delete-shot") || e.target.tagName === "A" || e.target.tagName === "INPUT") return;
       const cid = card.getAttribute("data-clip-id");
       const found = state.generations.find((g) => g.id === cid);
       if (found) {
@@ -1396,19 +1568,85 @@ function renderTimeline() {
   } else {
     track.innerHTML = state.timeline
       .map((item, idx) => `
-        <div class="timeline-clip-card" data-tl-clip="${item.clipId}">
+        <div class="timeline-clip-card" draggable="true" data-tl-clip="${item.clipId}" data-tl-id="${item.timelineId}" data-idx="${idx}">
           <div class="clip-head-row">
             <span class="clip-index">Scene #${idx + 1} • ${item.scriptBeatLabel ? item.scriptBeatLabel.split("•")[0].trim() : "Beat #" + (idx + 1)} (${item.durationSec >= 60 ? Math.round(item.durationSec / 60) + 'm' : item.durationSec + 's'})</span>
             <div style="display:flex;align-items:center;gap:6px;">
-              <span class="clip-trans">${item.transition}</span>
+              <span class="clip-trans" title="Click to cycle cut transition">${item.transition || "crossfade"}</span>
               <button class="btn-remove-tl" data-remove-tl="${item.timelineId}" title="Remove from movie timeline">✕</button>
             </div>
           </div>
           <div class="clip-title-single">${item.prompt}</div>
+          <div class="clip-trim-controls">
+            <span>Trim In:</span>
+            <input type="number" class="trim-input-num trim-in" min="0" max="${(item.durationSec || 5) - 1}" value="${item.trimIn || 0}" data-tl-id="${item.timelineId}" />s
+            <span style="margin-left:4px;">Out:</span>
+            <input type="number" class="trim-input-num trim-out" min="1" max="${item.durationSec || 5}" value="${item.trimOut || (item.durationSec || 5)}" data-tl-id="${item.timelineId}" />s
+          </div>
         </div>
       `)
       .join("");
   }
+
+  // Drag and drop timeline clip reordering
+  let draggedIdx = null;
+  track.querySelectorAll(".timeline-clip-card").forEach((card) => {
+    card.addEventListener("dragstart", (e) => {
+      draggedIdx = Number(card.getAttribute("data-idx"));
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      track.querySelectorAll(".timeline-clip-card").forEach((c) => c.classList.remove("drag-over"));
+    });
+    card.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      card.classList.add("drag-over");
+    });
+    card.addEventListener("dragleave", () => {
+      card.classList.remove("drag-over");
+    });
+    card.addEventListener("drop", (e) => {
+      e.preventDefault();
+      card.classList.remove("drag-over");
+      const targetIdx = Number(card.getAttribute("data-idx"));
+      if (draggedIdx !== null && draggedIdx !== targetIdx) {
+        const moved = state.timeline.splice(draggedIdx, 1)[0];
+        state.timeline.splice(targetIdx, 0, moved);
+        renderTimeline();
+      }
+    });
+  });
+
+  // Transition cycle click
+  track.querySelectorAll(".clip-trans").forEach((transEl) => {
+    transEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const card = transEl.closest(".timeline-clip-card");
+      const tlId = card.getAttribute("data-tl-id");
+      const item = state.timeline.find((t) => t.timelineId === tlId);
+      if (item) {
+        const transList = ["crossfade", "cut", "wipeleft", "wiperight", "circleopen"];
+        const nextIdx = (transList.indexOf(item.transition || "crossfade") + 1) % transList.length;
+        item.transition = transList[nextIdx];
+        renderTimeline();
+      }
+    });
+  });
+
+  // Trim In / Out inputs
+  track.querySelectorAll(".trim-input-num").forEach((inp) => {
+    inp.addEventListener("change", (e) => {
+      e.stopPropagation();
+      const tlId = inp.getAttribute("data-tl-id");
+      const item = state.timeline.find((t) => t.timelineId === tlId);
+      if (item) {
+        if (inp.classList.contains("trim-in")) item.trimIn = Math.max(0, Number(inp.value));
+        if (inp.classList.contains("trim-out")) item.trimOut = Math.max(1, Number(inp.value));
+      }
+    });
+  });
 
   track.querySelectorAll(".timeline-clip-card").forEach((el) => {
     el.addEventListener("click", () => {
@@ -2051,7 +2289,7 @@ function renderModelsMatrix(tierFilter = "all") {
   const filtered =
     tierFilter === "all"
       ? state.models
-      : tierFilter === "higgsfield" || tierFilter === "movie-platform"
+      : tierFilter === "higgsfield" || tierFilter === "movie-platform" || tierFilter === "premium-api"
       ? state.models.filter((m) => m.platformGroup === tierFilter)
       : state.models.filter((m) => m.tier === tierFilter);
 
@@ -2944,6 +3182,47 @@ function initReferenceUploader() {
       pill.classList.remove("hidden");
     });
   }
+
+  // End Frame (First Frame -> Last Frame Transition)
+  const endPill = document.getElementById("endFrameUploadPill");
+  const endFileInput = document.getElementById("endFrameFileInput");
+  const endPreviewBox = document.getElementById("endFramePreviewBox");
+  const endPreviewImg = document.getElementById("endFramePreviewImg");
+  const endFileNameEl = document.getElementById("endFrameFileName");
+  const clearEndBtn = document.getElementById("clearEndFrameBtn");
+
+  if (endPill && endFileInput) {
+    endPill.addEventListener("click", () => endFileInput.click());
+    endFileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        state.endFrameDataUrl = ev.target.result;
+        if (endPreviewImg) endPreviewImg.src = ev.target.result;
+        if (endFileNameEl) endFileNameEl.textContent = file.name;
+        if (endPreviewBox) endPreviewBox.classList.remove("hidden");
+        endPill.classList.add("hidden");
+        // Automatically switch generation mode to first-last-frame
+        const modeSel = document.getElementById("generationModeSelect");
+        if (modeSel) {
+          modeSel.value = "first-last-frame";
+          state.generationMode = "first-last-frame";
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (clearEndBtn) {
+    clearEndBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.endFrameDataUrl = null;
+      if (endFileInput) endFileInput.value = "";
+      if (endPreviewBox) endPreviewBox.classList.add("hidden");
+      if (endPill) endPill.classList.remove("hidden");
+    });
+  }
 }
 
 // ==================== HIGGSFIELD VS DAFEILD PLANS & CREDITS MODAL ====================
@@ -2985,15 +3264,37 @@ function initPricingPlansModal() {
   }
 
   document.querySelectorAll(".btn-tier-select").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const planId = btn.getAttribute("data-plan-id");
       state.activePricingPlan = planId;
       localStorage.setItem("dafeild_pricing_plan", planId);
-      updateActivePlanUI();
 
-      if (openBtn) {
-        const labels = { free: "💎 Community Free", pro: "💎 Director Pro", studio: "💎 Studio Ultra" };
-        openBtn.textContent = labels[planId] || "💎 Plans & Credits";
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = "Connecting Checkout...";
+
+      try {
+        const res = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planId })
+        });
+        const data = await res.json();
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl; // real Stripe Checkout
+          return;
+        }
+        if (!data.ok) {
+          alert(`Checkout unavailable: ${data.error}`);
+        } else if (planId === "free") {
+          updateActivePlanUI();
+          modal.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("Billing error:", err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     });
   });

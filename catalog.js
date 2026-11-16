@@ -480,7 +480,34 @@ const VIDEO_MODELS = [
     falEndpoint: "https://fal.run/fal-ai/wan-t2v",
     hfRepo: "ByteDance/Seedance-1.0",
     description: "Full-body choreography, OmniHuman expressive hand gestures, and 5-minute (300s) 1080p MP4 master rendering."
-  }
+  },
+  // ==================== PREMIUM MODELS VIA FAL.AI (requires Fal key) ====================
+  ...[
+    { id: "fal-seedance-2.5-flash", name: "ByteDance Seedance 2.5 Flash", cost: 0.3, q: 9.9, badges: ["SEEDANCE 2.5", "MULTI-SHOT", "NATIVE AUDIO"], fal: "https://fal.run/bytedance/seedance-2.5/flash/text-to-video", res: "1280x720 (720p)", desc: "Latest Seedance: up to 30s single pass, native audio sync, multi-shot storytelling." },
+    { id: "fal-seedance-2.0-fast", name: "ByteDance Seedance 2.0 Fast", cost: 0.25, q: 9.8, badges: ["SEEDANCE 2.0", "1080P"], fal: "https://fal.run/bytedance/seedance-2.0/fast/text-to-video", res: "1920x1080 (1080p Full HD)", desc: "Seedance 2.0 fast tier, up to 15s at up to 1080p." },
+    { id: "fal-kling-2.1", name: "Kling 2.1 Master", cost: 0.35, q: 9.7, badges: ["KLING"], fal: "https://fal.run/fal-ai/kling-video/v2.1/master/text-to-video", res: "1920x1080 (1080p Full HD)", desc: "Realistic human motion." },
+    { id: "fal-veo-3", name: "Google Veo 3", cost: 0.75, q: 9.9, badges: ["VEO 3", "AUDIO"], fal: "https://fal.run/fal-ai/veo3", res: "1920x1080 (1080p Full HD)", desc: "Synchronized dialogue and sound." },
+    { id: "fal-hailuo-02", name: "MiniMax Hailuo 02", cost: 0.2, q: 9.5, badges: ["HAILUO", "PHYSICS"], fal: "https://fal.run/fal-ai/minimax/hailuo-02/standard/text-to-video", res: "1280x720 (720p)", desc: "Strong physics and action scenes." },
+    { id: "fal-wan-2.2", name: "Wan 2.2 A14B", cost: 0.08, q: 9.3, badges: ["WAN 2.2", "OPEN WEIGHTS"], fal: "https://fal.run/fal-ai/wan/v2.2-a14b/text-to-video", res: "1280x720 (720p)", desc: "Open-weights quality at low cost." }
+  ].map((m) => ({
+    id: m.id,
+    name: m.name,
+    provider: "via Fal.ai (Fal key required)",
+    platformGroup: "premium-api",
+    tier: "pro",
+    costPerClipUsd: m.cost,
+    speedSec: 30,
+    maxResolution: m.res,
+    maxDurationSec: 30,
+    license: "Commercial API",
+    vramRequired: "Cloud API",
+    badges: m.badges,
+    capabilities: ["text-to-video", "image-to-video", "camera-control", "soul-id"],
+    qualityScore: m.q,
+    falEndpoint: m.fal,
+    requiresKey: "falKey",
+    description: `${m.desc} Same model OpenArt offers, called directly at wholesale price. Needs a Fal key in ⚡ Cloud GPU & Keys.`
+  }))
 ];
 
 const CAMERA_PRESETS = [

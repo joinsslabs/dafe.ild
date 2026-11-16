@@ -35,7 +35,8 @@ const {
   generateFreeKeylessAiFrameAndMp4,
   probeExternalMcpServer
 } = require("./ai-engine");
-const { encodeRealH264Mp4FromFrames } = require("./ffmpeg-engine");
+const { encodeRealH264Mp4FromFrames, cropToVerticalMp4, buildTrailerMp4 } = require("./ffmpeg-engine");
+const https = require("https");
 
 const PORT = process.env.PORT || 3456;
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -507,6 +508,30 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // 2e. Update / Rename Scene Title (Prompt) Endpoint
+    if (pathname.startsWith("/api/generations/") && req.method === "PATCH") {
+      const clipId = pathname.replace("/api/generations/", "").trim();
+      const body = await readJsonBody(req);
+      const state = loadState();
+      const target = state.generations.find((g) => g.id === clipId);
+      if (!target) {
+        return sendJson(res, 404, { error: `Scene ${clipId} not found` });
+      }
+      if (body.prompt && body.prompt.trim()) {
+        target.prompt = body.prompt.trim();
+      }
+      state.timeline.forEach((t) => {
+        if (t.clipId === clipId && body.prompt) t.prompt = body.prompt.trim();
+      });
+      saveState(state);
+      return sendJson(res, 200, {
+        updated: true,
+        clip: target,
+        generations: state.generations,
+        timeline: state.timeline
+      });
+    }
+
     // 3. Soul ID Management
     if (pathname === "/api/soul-id" && req.method === "POST") {
       const body = await readJsonBody(req);
@@ -639,6 +664,84 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const retakeRes = await performSurgicalSceneRetake(body);
       return sendJson(res, 200, retakeRes);
+    }
+
+    // 4f. Real Stripe Checkout (requires STRIPE_SECRET_KEY + STRIPE_PRICE_PRO / STRIPE_PRICE_STUDIO)
+    if (pathname === "/api/billing/checkout" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      const planId = body.planId === "studio" ? "studio" : body.planId === "pro" ? "pro" : "free";
+      if (planId === "free") return sendJson(res, 200, { ok: true, plan: "free" });
+
+      const secret = process.env.STRIPE_SECRET_KEY;
+      const priceId = planId === "studio" ? process.env.STRIPE_PRICE_STUDIO : process.env.STRIPE_PRICE_PRO;
+      if (!secret || !priceId) {
+        return sendJson(res, 501, {
+          ok: false,
+          error: "Payments not configured. Set STRIPE_SECRET_KEY, STRIPE_PRICE_PRO and STRIPE_PRICE_STUDIO."
+        });
+      }
+      const origin = `http://${req.headers.host}`;
+      const form = new URLSearchParams({
+        mode: "subscription",
+        "line_items[0][price]": priceId,
+        "line_items[0][quantity]": "1",
+        success_url: `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?checkout=cancel`,
+        "metadata[planId]": planId
+      }).toString();
+
+      const stripeRes = await new Promise((resolve, reject) => {
+        const r = https.request(
+          "https://api.stripe.com/v1/checkout/sessions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${secret}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Content-Length": Buffer.byteLength(form)
+            }
+          },
+          (sr) => {
+            let d = "";
+            sr.on("data", (c) => (d += c));
+            sr.on("end", () => resolve({ status: sr.statusCode, json: JSON.parse(d || "{}") }));
+          }
+        );
+        r.on("error", reject);
+        r.write(form);
+        r.end();
+      });
+      if (stripeRes.status >= 300 || !stripeRes.json.url) {
+        return sendJson(res, 502, { ok: false, error: stripeRes.json.error?.message || "Stripe error" });
+      }
+      // Credits are NOT granted here — only after Stripe confirms payment (webhook, to be added with user accounts).
+      return sendJson(res, 200, { ok: true, checkoutUrl: stripeRes.json.url });
+    }
+
+    // 4g. Real 9:16 vertical crop of a clip
+    if (pathname === "/api/export/vertical" && req.method === "POST") {
+      const body = await readJsonBody(req);
+      const state = loadState();
+      const clip = state.generations.find((g) => g.id === body.clipId);
+      const src = clip && (clip.mp4Url || clip.videoUrl);
+      if (!src) return sendJson(res, 404, { error: "Clip has no MP4" });
+      const srcPath = path.join(PUBLIC_DIR, src.split("?")[0]);
+      const outName = `${clip.id}-9x16.mp4`;
+      await cropToVerticalMp4({ srcMp4Path: srcPath, destMp4Path: path.join(RENDERS_DIR, outName) });
+      return sendJson(res, 200, { ok: true, mp4Url: `/renders/${outName}` });
+    }
+
+    // 4h. Real 15s trailer from timeline clips (falls back to latest generations)
+    if (pathname === "/api/export/trailer" && req.method === "POST") {
+      const state = loadState();
+      const ids = state.timeline.length ? state.timeline.map((t) => t.clipId) : state.generations.slice(0, 5).map((g) => g.id);
+      const paths = ids
+        .map((id) => state.generations.find((g) => g.id === id))
+        .filter((g) => g && (g.mp4Url || g.videoUrl))
+        .map((g) => path.join(PUBLIC_DIR, (g.mp4Url || g.videoUrl).split("?")[0]));
+      const outName = `trailer-${Date.now()}.mp4`;
+      const r = await buildTrailerMp4({ clipMp4Paths: paths, destMp4Path: path.join(RENDERS_DIR, outName), totalSec: 15 });
+      return sendJson(res, 200, { ok: true, mp4Url: `/renders/${outName}`, clipsUsed: r.clipsUsed });
     }
 
     // 5. MCP JSON-RPC 2.0 Endpoint (/api/mcp/rpc)

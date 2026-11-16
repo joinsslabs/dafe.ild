@@ -88,6 +88,27 @@
                 <span id="masterSoundLabel">Sound ON</span>
               </button>
 
+              <!-- Multi-Track Audio Faders Dropdown -->
+              <div class="hud-audio-mixer-wrap">
+                <button class="hud-btn" id="toggleAudioMixerBtn" title="Fine-tune Voice, Foley, and Score Faders">
+                  <span>🎚️ Multi-Track Audio</span>
+                </button>
+                <div class="audio-mixer-popover hidden" id="audioMixerPopover">
+                  <div class="mixer-slider-group">
+                    <div class="mixer-label-row"><span>🗣️ Voice / Lip-Sync</span><span id="voiceVolVal">100%</span></div>
+                    <input type="range" id="voiceVolSlider" min="0" max="100" value="100" class="mini-slider" />
+                  </div>
+                  <div class="mixer-slider-group">
+                    <div class="mixer-label-row"><span>⚡ Action Foley</span><span id="foleyVolVal">85%</span></div>
+                    <input type="range" id="foleyVolSlider" min="0" max="100" value="85" class="mini-slider" />
+                  </div>
+                  <div class="mixer-slider-group">
+                    <div class="mixer-label-row"><span>🎻 Cinematic Drone / Score</span><span id="scoreVolVal">70%</span></div>
+                    <input type="range" id="scoreVolSlider" min="0" max="100" value="70" class="mini-slider" />
+                  </div>
+                </div>
+              </div>
+
               <button class="hud-btn active" id="toggleNativeVideoBtn" title="Switch between Real H.264 .MP4 Video Player and Interactive Director Rig HUD">
                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="4" width="20" height="16" rx="2" />
@@ -119,6 +140,14 @@
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 <span>Download .MP4</span>
+              </button>
+
+              <button class="hud-btn" id="exportTikTokCropBtn" title="1-Click Auto-Crop to 9:16 Vertical for TikTok / Reels">
+                <span>📱 9:16 TikTok Crop</span>
+              </button>
+
+              <button class="hud-btn" id="exportTrailerBtn" title="1-Click 15-Second Cinematic Movie Trailer Teaser">
+                <span>⚡ 15s Trailer</span>
               </button>
 
               <button class="hud-btn hud-danger-btn" id="deleteActiveSceneBtn" title="Remove this scene if you do not like it">
@@ -231,24 +260,42 @@
             </button>
           </div>
 
-          <!-- Reference Character / Face / Product Uploader (Higgsfield Style) -->
+          <!-- Reference Character / First Frame & Last Frame Uploader (Higgsfield Style) -->
           <div class="reference-uploader-bar" id="referenceUploaderBar">
-            <div class="reference-upload-pill" id="referenceUploadPill" title="Drop or upload a face, character, or product image to lock identity across cuts">
+            <div class="reference-upload-pill" id="referenceUploadPill" title="Drop or upload start frame or character reference">
               <input type="file" id="referenceFileInput" accept="image/*" class="file-hidden" />
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span id="referenceUploadText">+ Reference Face / Character / Product (Identity Lock)</span>
+              <span id="referenceUploadText">+ Start Frame / Face Reference</span>
             </div>
             <div class="reference-preview-box hidden" id="referencePreviewBox">
               <img id="referencePreviewImg" src="" alt="Reference Preview" />
               <div class="reference-meta">
-                <span class="reference-name" id="referenceFileName">face-reference.jpg</span>
-                <span class="reference-lock-tag">🔒 Soul 2.0 Locked</span>
+                <span class="reference-name" id="referenceFileName">start-frame.jpg</span>
+                <span class="reference-lock-tag">🔒 Start Locked</span>
               </div>
-              <button type="button" class="btn-clear-ref" id="clearReferenceBtn" title="Remove reference image">✕</button>
+              <button type="button" class="btn-clear-ref" id="clearReferenceBtn" title="Remove start frame">✕</button>
+            </div>
+
+            <!-- Optional End Frame (First Frame -> Last Frame Transition) -->
+            <div class="reference-upload-pill end-frame-pill" id="endFrameUploadPill" title="Drop or upload end frame for Start-to-End cinematic transition">
+              <input type="file" id="endFrameFileInput" accept="image/*" class="file-hidden" />
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" />
+                <line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="2" />
+              </svg>
+              <span id="endFrameUploadText">+ End Frame (Morph / Transition)</span>
+            </div>
+            <div class="reference-preview-box hidden" id="endFramePreviewBox">
+              <img id="endFramePreviewImg" src="" alt="End Frame Preview" />
+              <div class="reference-meta">
+                <span class="reference-name" id="endFrameFileName">end-frame.jpg</span>
+                <span class="reference-lock-tag" style="color:#22d3ee;">🎬 End Target</span>
+              </div>
+              <button type="button" class="btn-clear-ref" id="clearEndFrameBtn" title="Remove end frame">✕</button>
             </div>
           </div>
 
@@ -326,6 +373,15 @@
                   <option value="120">2 min (120s)</option>
                   <option value="180">3 min (180s)</option>
                   <option value="300" selected>5 min (300s)</option>
+                </select>
+              </div>
+
+              <!-- Quality Export Preset Toggle: Draft 720p vs Master Cinema 1080p -->
+              <div class="capsule-select-pill" title="Toggle between ultra-fast Draft storyboard vs Master Cinema 1080p output">
+                <span class="capsule-label">Grade</span>
+                <select id="renderQualitySelect" class="pill-select">
+                  <option value="master" selected>⭐ Master (1080p Cinema)</option>
+                  <option value="draft">⚡ Draft (Fast 720p)</option>
                 </select>
               </div>
             </div>
@@ -505,6 +561,9 @@
           <div id="stitchedMovieBanner" class="stitched-movie-banner hidden"></div>
 
           <!-- Active Movie Sequence Strip -->
+          <div class="timeline-trim-instructions">
+            <span>💡 <strong>Interactive Timeline:</strong> Drag clips left/right to reorder sequence • Set Trim In/Out markers • Click any transition chip to switch cuts</span>
+          </div>
           <div class="track-timeline" id="timelineTrack"></div>
 
           <!-- Rendered Clips Grid -->
@@ -530,6 +589,7 @@
             <button class="tier-pill active" data-tier="all">All Models</button>
             <button class="tier-pill" data-tier="higgsfield">Higgsfield AI</button>
             <button class="tier-pill" data-tier="movie-platform">Movie Platforms</button>
+            <button class="tier-pill" data-tier="premium-api">Seedance · Veo · Kling</button>
             <button class="tier-pill" data-tier="free">100% Free ($0.00)</button>
             <button class="tier-pill" data-tier="cheap">Ultra-Cheap ($0.02+)</button>
             <button class="tier-pill" data-tier="pro">Top-Tier Paid (Pro)</button>
@@ -828,7 +888,7 @@
             </div>
             <ul class="pricing-features-list">
               <li>✓ Unlimited Wan 2.1 Fast &amp; CogVideoX-5B</li>
-              <li>✓ LTX-Video &amp; Pollinations Multi-Beat AI</li>
+              <li>✓ LTX-Video &amp; Wan 2.1 free cloud GPUs (when available)</li>
               <li>✓ 360° Angle Compass &amp; 3D Camera Gizmo</li>
               <li>✓ Bring Your Own Key (BYOK) with $0 markup</li>
               <li>✓ Real 24fps H.264 .MP4 Video Exports</li>

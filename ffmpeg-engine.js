@@ -406,10 +406,60 @@ async function stitchRealH264MovieMp4({ clipMp4Paths = [], destMp4Path, rendersD
   return { destMp4Path, clipsStitched: valid.length };
 }
 
+/**
+ * Real 9:16 vertical crop (center crop, scaled to 1080x1920) of an existing MP4.
+ */
+async function cropToVerticalMp4({ srcMp4Path, destMp4Path }) {
+  if (!fs.existsSync(srcMp4Path)) throw new Error("Source MP4 not found");
+  const tmpMp4 = `${destMp4Path}.${Date.now()}.tmp.mp4`;
+  await runFfmpeg([
+    "-y", "-i", srcMp4Path,
+    "-vf", "crop='min(iw,ih*9/16)':ih,scale=1080:1920,setsar=1",
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+    "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+    tmpMp4
+  ], 120000);
+  atomicMove(tmpMp4, destMp4Path);
+  return { destMp4Path };
+}
+
+/**
+ * Real trailer: takes a short slice from each clip, normalizes to 1280x720/24fps/stereo,
+ * and concatenates into one MP4 capped at totalSec.
+ */
+async function buildTrailerMp4({ clipMp4Paths = [], destMp4Path, totalSec = 15 }) {
+  const valid = clipMp4Paths.filter((p) => p && fs.existsSync(p) && fs.statSync(p).size > 1000);
+  if (valid.length === 0) throw new Error("No valid clips for trailer");
+  const per = Math.max(1, totalSec / valid.length);
+  const args = ["-y"];
+  valid.forEach((p) => args.push("-t", per.toFixed(2), "-i", p));
+  const parts = [];
+  valid.forEach((_, i) => {
+    parts.push(`[${i}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24,format=yuv420p[v${i}]`);
+    parts.push(`[${i}:a]aformat=sample_rates=44100:channel_layouts=stereo[a${i}]`);
+  });
+  const ins = valid.map((_, i) => `[v${i}][a${i}]`).join("");
+  parts.push(`${ins}concat=n=${valid.length}:v=1:a=1[vout][aout]`);
+  const tmpMp4 = `${destMp4Path}.${Date.now()}.tmp.mp4`;
+  args.push(
+    "-filter_complex", parts.join(";"),
+    "-map", "[vout]", "-map", "[aout]",
+    "-t", String(totalSec),
+    "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p",
+    "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
+    tmpMp4
+  );
+  await runFfmpeg(args, 180000);
+  atomicMove(tmpMp4, destMp4Path);
+  return { destMp4Path, clipsUsed: valid.length };
+}
+
 module.exports = {
   getFfmpegBinary,
   processRawDiffusionVideo,
   encodeRealH264Mp4FromFrames,
   encodeFallbackH264Mp4,
-  stitchRealH264MovieMp4
+  stitchRealH264MovieMp4,
+  cropToVerticalMp4,
+  buildTrailerMp4
 };
